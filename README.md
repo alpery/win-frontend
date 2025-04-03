@@ -1,16 +1,74 @@
-# Svelte + Vite
+# Win Frontend
 
-This template should help get you started developing with Svelte in Vite.
+A Svelte 5 application built with Vite.
+
+## Installation
+
+This project uses [pnpm](https://pnpm.io/) as the package manager. If you don't have pnpm installed, you can install it using:
+
+```bash
+npm install -g pnpm
+```
+
+To install the project dependencies:
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd win-frontend
+
+# Install dependencies
+pnpm install
+```
+
+## Running the Application
+
+### Development Mode
+
+To run the application in development mode with hot module replacement:
+
+```bash
+pnpm dev
+```
+
+This will start the development server at `http://localhost:5173` (default Vite port).
+
+### Building for Production
+
+To build the application for production:
+
+```bash
+pnpm build
+```
+
+This will generate optimized assets in the `dist` directory.
+
+### Previewing the Production Build
+
+To preview the production build locally:
+
+```bash
+pnpm preview
+```
 
 ## Recommended IDE Setup
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+### WebStorm
 
-## Need an official Svelte framework?
+[WebStorm](https://www.jetbrains.com/webstorm/) provides excellent support for Svelte and JavaScript projects. To set up WebStorm for this project:
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+1. Install WebStorm from the [JetBrains website](https://www.jetbrains.com/webstorm/download/)
+2. Install the Svelte plugin:
+   - Go to Preferences/Settings > Plugins
+   - Search for "Svelte" and install the official plugin
+3. Configure JavaScript settings:
+   - Go to Preferences/Settings > Languages & Frameworks > JavaScript
+   - Set JavaScript language version to "ECMAScript 6+"
+   - Enable "ESM" for module system
 
-## Technical considerations
+WebStorm will automatically recognize the project's configuration from `jsconfig.json` and provide appropriate code assistance.
+
+## Technical Considerations
 
 **Why use this over SvelteKit?**
 
@@ -20,18 +78,6 @@ Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also pow
 This template contains as little as possible to get started with Vite + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
 
 Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
-
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
-
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `checkJs` in the JS template?**
-
-It is likely that most cases of changing variable types in runtime are likely to be accidental, rather than deliberate. This provides advanced typechecking out of the box. Should you like to take advantage of the dynamically-typed nature of JavaScript, it is trivial to change the configuration.
 
 **Why is HMR not preserving my local component state?**
 
