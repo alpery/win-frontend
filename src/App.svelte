@@ -22,13 +22,17 @@
     let voicePrompt = "";
     let inputRef = null;
     let showVoiceHint = true;
-    // let useSymbols = true; // Standardmäßig Symbole verwenden
+
+
+    //anoimation variablen
+
+    let drops = Array.from({length: 100});
 
     // Function to fetch weather data
     async function fetchWeatherData() {
 
         if (!city.trim()) {
-            error = "Please enter a city name";
+            city = "Please enter a city name";
             return;
         }
 
@@ -49,6 +53,7 @@
 
             weatherData = await response.json();
             processWeatherData();
+            dailyForecasts[0].description = "rain";
 
 
         } catch (err) {
@@ -56,6 +61,7 @@
             error = `Error fetching weather data: ${err.message}`;
             weatherData = [];
             dailyForecasts = [];
+
         } finally {
             loading = false;
         }
@@ -181,13 +187,6 @@
         });
     }
 
-    // Format time
-    function formatTime(dateString) {
-        return new Date(dateString).toLocaleTimeString("de-DE", {
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    }
 
     // Get weather icon URL
     function getWeatherIconUrl(iconCode) {
@@ -272,7 +271,11 @@
                 const parts = transcript.split(triggerWord.toLowerCase());
                 if (parts.length < 2) return;
 
-                let command = parts[1].trim();
+                let command = parts[1].trim()
+                if (command.endsWith('.')) {
+                    command = command.slice(0, -1);
+                }
+                if (!command) return;
                 command = command.replace(/\.$/, '');
                 if (!command) return;
 
@@ -329,17 +332,8 @@
         // Start with a default city
 
         fetchWeatherData();
-        return () => {
-            if (recognition) {
-                isListening = false;
-                try {
-                    recognition.stop();
-                } catch (e) {
-                }
-            }
-        };
-        // Initialize speech recognition
 
+        // Initialize speech recognition
 
     });
 
@@ -350,6 +344,17 @@
 
 </script>
 <main>
+    <div class="weather-animation">
+        {#if dailyForecasts.length > 0 && dailyForecasts[selectedDayIndex].weatherCondition === 'rain'}
+            <div class="rain-animation">
+                {#each drops as _, i}
+                    <div class="drop" style="left: {Math.random() * 100}%; animation-delay: {Math.random()}s;"></div>
+                {/each}
+            </div>
+        {/if}
+    </div>
+
+
     {#if dailyForecasts.length > 0}
         <div class="weather-app" style="background: {getBackgroundGradient(dailyForecasts[selectedDayIndex])}">
             <div class="app-header">
@@ -543,6 +548,76 @@
 </main>
 
 <style>
+    .rain-animation {
+        animation: rain 2s infinite;
+    }
+
+    @keyframes rain {
+        0% {
+            opacity: 0;
+        }
+        50% {
+            opacity: 1;
+        }
+        100% {
+            opacity: 0;
+        }
+    }
+
+    .weather-animation {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: hidden;
+        z-index: 1;
+    }
+
+    .rain-animation .drop {
+        position: absolute;
+        top: -10%;
+        width: 2px;
+        height: 20px;
+        background: rgba(255, 255, 255, 0.5);
+        animation: rainDrop 0.7s linear infinite;
+    }
+
+    @keyframes rainDrop {
+        0% {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(120vh);
+            opacity: 0;
+        }
+    }
+
+
+    .rain-animation::before {
+        content: "";
+        position: absolute;
+        top: -100%;
+        left: 50%;
+        width: 2px;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.5);
+        animation: rainDrop 0.5s linear infinite;
+    }
+
+    @keyframes rainDrop {
+        0% {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(100vh);
+            opacity: 0;
+        }
+    }
+
 
     .connection-status, .recording-status {
         padding: 0.5rem 1rem;
