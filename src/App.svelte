@@ -24,9 +24,9 @@
     let showVoiceHint = true;
 
 
-    //anoimation variablen
+    //animation variablen
 
-    let drops = Array.from({length: 100});
+    // let drops = Array.from({length: 100});
 
     // Function to fetch weather data
     async function fetchWeatherData() {
@@ -46,15 +46,21 @@
             );
 
             if (!response.ok) {
-                throw new Error(
+                new Error(
                     `Failed to fetch weather data: ${response.statusText}`,
                 );
             }
 
             weatherData = await response.json();
             processWeatherData();
-            dailyForecasts[0].description = "rain";
-
+            console.log(dailyForecasts);  // Füge ein, um die Daten zu prüfen
+            if (!recentSearches.includes(city)) {
+                recentSearches = [city, ...recentSearches.slice(0, 4)];
+                localStorage.setItem(
+                    "recentSearches",
+                    JSON.stringify(recentSearches),
+                );
+            }
 
         } catch (err) {
             console.error("Error fetching weather data:", err);
@@ -67,7 +73,7 @@
         }
     }
 
-    // Process weather data to group by day
+
     function processWeatherData() {
 
 
@@ -166,14 +172,33 @@
 
     // Get weather condition category
     function getWeatherCondition(description) {
+        const weatherContainer = document.getElementById('weather-container');
+
         const desc = description.toLowerCase();
         if (desc.includes("klar") || desc.includes("himmel")) return "clear";
-        if (desc.includes("wolke") || desc.includes("bewölkt")) return "cloudy";
-        if (desc.includes("regen")) return "rain";
-        if (desc.includes("schnee")) return "snow";
-        if (desc.includes("gewitter") || desc.includes("sturm")) return "storm";
+
+        if (desc.includes("wolke") || desc.includes("bewölkt")) {
+            //   weatherContainer.classList.add('clouds-animation');
+            return "cloudy";
+        }
+        if (desc.includes("regen")) {
+            //   weatherContainer.classList.add('rain-animation');
+            return "rain";
+        }
+        if (desc.includes("schnee")) {
+            //    weatherContainer.classList.add('snow-animation');
+            return "snow";
+        }
+
+        if (desc.includes("gewitter") || desc.includes("sturm")) {
+            //    weatherContainer.classList.add('lightning-animation');
+            return "storm";
+        }
         if (desc.includes("nebel")) return "fog";
-        return "default";
+        {
+            //    weatherContainer.classList.add('fog-animation');
+            return "default";
+        }
     }
 
 
@@ -201,13 +226,6 @@
     }
 
 
-    // Select a recent search
-    function selectRecentSearch(searchTerm) {
-        city = searchTerm;
-        fetchWeatherData();
-        showRecentSearches = false;
-    }
-
     // Get background gradient based on time and weather
     function getBackgroundGradient(forecast) {
         if (!forecast) return "linear-gradient(to bottom, #4b6cb7, #182848)";
@@ -215,6 +233,7 @@
         const condition = forecast.weatherCondition;
         const hour = new Date(forecast.forecasts[0].forecastDate).getHours();
         const isDay = hour >= 6 && hour < 20;
+        console.log(forecast.weatherCondition);
 
         if (condition === "clear") {
             return isDay
@@ -340,22 +359,131 @@
     // Get today's date in the same format as your forecast date
 
     // Function to check if the weather data corresponds to today
+    // let flakes = Array(100).fill(0); // 100 Schneeflocken für Schnee
+    // let bolts = Array(10).fill(0); // 10 Blitze für den Sturm
+    // let mist = Array(50).fill(0); // 50 Nebelpartikel für Nebel
+    // let clouds = Array(30).fill(0); // 30 Wolken für bewölkt
 
 
 </script>
 <main>
-    <div class="weather-animation">
-        {#if dailyForecasts.length > 0 && dailyForecasts[selectedDayIndex].weatherCondition === 'rain'}
-            <div class="rain-animation">
-                {#each drops as _, i}
-                    <div class="drop" style="left: {Math.random() * 100}%; animation-delay: {Math.random()}s;"></div>
-                {/each}
-            </div>
-        {/if}
-    </div>
-
 
     {#if dailyForecasts.length > 0}
+        <div id="weather-container" class="weather-animation">
+
+            <div class="weather-app" style="background: {getBackgroundGradient(dailyForecasts[selectedDayIndex])}">
+                <div class="app-header">
+                    <h1>Wetter Vorhersage</h1>
+
+                    <div class="voice-hint">
+                        <div class="voice-hint-content">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                 stroke-linejoin="round">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="23"></line>
+                                <line x1="8" y1="23" x2="16" y2="23"></line>
+                            </svg>
+                            <span>Neu! Sprachsteuerung verfügbar. Sagen Sie "Wetter" und irgendwelche Stadt</span>
+                        </div>
+                    </div>
+
+
+                    <div class="search-container">
+                        <form on:submit={handleSubmit} class="search-form">
+                            <div class="input-wrapper {isListening ? 'listening' : ''}">
+                                <input bind:value={city} bind:this={inputRef}
+                                       placeholder={isListening ? voicePrompt : "Stadt eingeben..."} class="city-input"
+
+                                       readonly="readonly"/>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                {#if error}
+                    <div class="error-message">
+                        {error}
+                    </div>
+                {/if}
+
+                {#if loading}
+                    <div class="loading-container">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Wetterdaten werden geladen...</div>
+                    </div>
+                {:else}
+                    <!--                    <div class="weather-animation rain-animation"></div>-->
+                    <!--                    &lt;!&ndash; Dynamische Wetteranimation hier hinzufügen &ndash;&gt;-->
+
+                    <div class="today-weather-card">
+                        <div class="date">{formatDate(dailyForecasts[0].date)}</div>
+
+                        <div class="weather-info">
+                            <div class="temperature-container">
+                                <div class="current-temp">{Math.round(dailyForecasts[0].temperature)}°C</div>
+                                <div class="min-max">
+                                    <span class="min">{Math.round(dailyForecasts[0].minTemperature)}°C</span> /
+                                    <span class="max">{Math.round(dailyForecasts[0].maxTemperature)}°C</span>
+                                </div>
+                            </div>
+
+                            <div class="weather-icon">
+                                <img src={getWeatherIconUrl(dailyForecasts[0].iconCode)}
+                                     alt={dailyForecasts[0].description}/>
+                                <div class="description">{dailyForecasts[0].description}</div>
+                            </div>
+                        </div>
+
+                        <div class="details">
+                            <div class="detail-item">
+                                <span class="label">Luftfeuchtigkeit:</span>
+                                <span class="value">{dailyForecasts[0].avgHumidity}%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="next-weather">
+
+                        {#each dailyForecasts.slice(1) as weatherData}
+
+                            <div class="weather-card">
+                                <div class="date">{formatDate(weatherData.date)}</div>
+
+                                <div class="weather-info">
+                                    <div class="temperature-container">
+                                        <div class="current-temp">{Math.round(weatherData.temperature)}°C</div>
+                                        <div class="min-max">
+                                            <span class="min">{Math.round(weatherData.minTemperature)}°C</span> /
+                                            <span class="max">{Math.round(weatherData.maxTemperature)}°C</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="weather-icon">
+                                        <img src={getWeatherIconUrl(weatherData.iconCode)}
+                                             alt={weatherData.description}/>
+                                        <div class="description">{weatherData.description}</div>
+                                    </div>
+                                </div>
+
+                                <div class="details">
+                                    <div class="detail-item">
+                                        <span class="label">Luftfeuchtigkeit:</span>
+                                        <span class="value">{weatherData.avgHumidity}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+        </div>
+
+    {:else}
+
+        <!--        <div id="weather-container" class="weather-animation">-->
+
         <div class="weather-app" style="background: {getBackgroundGradient(dailyForecasts[selectedDayIndex])}">
             <div class="app-header">
                 <h1>Wetter Vorhersage</h1>
@@ -373,168 +501,18 @@
                         <span>Neu! Sprachsteuerung verfügbar. Sagen Sie "Wetter" und irgendwelche Stadt</span>
                     </div>
                 </div>
-                <div class="status-indicators">
-                    <div class="connection-status {isConnected ? 'connected' : 'disconnected'}">
-                        {isConnected ? '🟢 Verbunden' : '🔴 Nicht verbunden'}
-                    </div>
-                    <div class="recording-status {isRecording ? 'recording' : ''}">
-                        {isRecording ? '🎤 Aufnahme läuft...' : '🎤 Bereit für Sprachbefehle'}
-                    </div>
-                </div>
 
 
                 <div class="search-container">
                     <form on:submit={handleSubmit} class="search-form">
                         <div class="input-wrapper {isListening ? 'listening' : ''}">
-                            <input type="text" bind:value={city} bind:this={inputRef}
+                            <input bind:value={city} bind:this={inputRef}
                                    placeholder={isListening ? voicePrompt : "Stadt eingeben..."} class="city-input"
-                                   on:focus={() => (showRecentSearches = true)}/>
-                            {#if showRecentSearches && recentSearches.length > 0}
-                                <div class="recent-searches">
-                                    {#each recentSearches as search}
-                                        <div class="recent-search-item" role="button"
-                                             on:click={() => selectRecentSearch(search)}
-                                             on:keydown={(e) => e.key === "Enter" && selectRecentSearch(search)}
-                                             tabindex="0">
-                                            {search}
-                                        </div>
-                                    {/each}
-                                </div>
-                            {/if}
+
+                                   readonly="readonly"/>
                         </div>
                     </form>
                 </div>
-            </div>
-
-            {#if error}
-                <div class="error-message">
-                    {error}
-                </div>
-            {/if}
-
-            {#if loading}
-                <div class="loading-container">
-                    <div class="loading-spinner"></div>
-                    <div class="loading-text">Wetterdaten werden geladen...</div>
-                </div>
-            {:else}
-                <div class="today-weather-card">
-                    <div class="date">{formatDate(dailyForecasts[0].date)}</div>
-
-                    <div class="weather-info">
-                        <div class="temperature-container">
-                            <div class="current-temp">{Math.round(dailyForecasts[0].temperature)}°C</div>
-                            <div class="min-max">
-                                <span class="min">{Math.round(dailyForecasts[0].minTemperature)}°C</span> /
-                                <span class="max">{Math.round(dailyForecasts[0].maxTemperature)}°C</span>
-                            </div>
-                        </div>
-
-                        <div class="weather-icon">
-                            <img src={getWeatherIconUrl(dailyForecasts[0].iconCode)}
-                                 alt={dailyForecasts[0].description}/>
-                            <div class="description">{dailyForecasts[0].description}</div>
-                        </div>
-                    </div>
-
-                    <div class="details">
-                        <div class="detail-item">
-                            <span class="label">Luftfeuchtigkeit:</span>
-                            <span class="value">{dailyForecasts[0].avgHumidity}%</span>
-                        </div>
-                    </div>
-                </div>
-
-
-                <div class="next-weather">
-                    <!-- Here is where the first weather card logic comes in -->
-                    {#each dailyForecasts.slice(1) as weatherData}
-
-                        <div class="weather-card">
-                            <div class="date">{formatDate(weatherData.date)}</div>
-
-                            <div class="weather-info">
-                                <div class="temperature-container">
-                                    <div class="current-temp">{Math.round(weatherData.temperature)}°C</div>
-                                    <div class="min-max">
-                                        <span class="min">{Math.round(weatherData.minTemperature)}°C</span> /
-                                        <span class="max">{Math.round(weatherData.maxTemperature)}°C</span>
-                                    </div>
-                                </div>
-
-                                <div class="weather-icon">
-                                    <img src={getWeatherIconUrl(weatherData.iconCode)} alt={weatherData.description}/>
-                                    <div class="description">{weatherData.description}</div>
-                                </div>
-                            </div>
-
-                            <div class="details">
-                                <div class="detail-item">
-                                    <span class="label">Luftfeuchtigkeit:</span>
-                                    <span class="value">{weatherData.avgHumidity}%</span>
-                                </div>
-                            </div>
-                        </div>
-                    {/each}
-                </div>
-            {/if}
-        </div>
-    {:else if !loading && !error}
-        <div class="weather-app empty-state">
-            <div class="app-header">
-                <h1>Wetter Vorhersage</h1>
-
-                {#if showVoiceHint}
-                    <div class="voice-hint">
-                        <div class="voice-hint-content">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                 stroke-linejoin="round">
-                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                                <line x1="12" y1="19" x2="12" y2="23"></line>
-                                <line x1="8" y1="23" x2="16" y2="23"></line>
-                            </svg>
-                            <span>Neu! Sprachsteuerung verfügbar. Sagen Sie "Konrad" oder klicken Sie auf das Mikrofon-Symbol, um nach einer Stadt zu suchen.</span>
-                        </div>
-                    </div>
-                {/if}
-
-                <div class="search-container">
-                    <form on:submit={handleSubmit} class="search-form">
-                        <div class="input-wrapper {isListening ? 'listening' : ''}">
-                            <input class="city-input" type="text" bind:value={city} bind:this={inputRef}
-                                   placeholder={isListening ? voicePrompt : "Stadt eingeben..."}
-                                   on:focus={() => (showRecentSearches = true)}/>
-                            {#if showRecentSearches && recentSearches.length > 0}
-                                <div class="recent-searches">
-                                    {#each recentSearches as search}
-                                        <div class="recent-search-item" role="button"
-                                             on:click={() => selectRecentSearch(search)}
-                                             on:keydown={(e) => e.key === "Enter" && selectRecentSearch(search)}
-                                             tabindex="0">
-                                            {search}
-                                        </div>
-                                    {/each}
-                                </div>
-                            {/if}
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            {#if error}
-                <div class="error-message">
-                    {error}
-                </div>
-            {/if}
-
-            {#if loading}
-                <div class="loading-container">
-                    <div class="loading-spinner"></div>
-                    <div class="loading-text">Wetterdaten werden geladen...</div>
-                </div>
-            {:else}
                 <div class="no-data">
                     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
                          stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
@@ -542,126 +520,289 @@
                     </svg>
                     <p>Keine Wetterdaten verfügbar. Bitte suchen Sie nach einer Stadt.</p>
                 </div>
-            {/if}
+            </div>
+
         </div>
+        <!--        </div>-->
     {/if}
+
 </main>
 
 <style>
-    .rain-animation {
-        animation: rain 2s infinite;
-    }
 
-    @keyframes rain {
-        0% {
-            opacity: 0;
-        }
-        50% {
-            opacity: 1;
-        }
-        100% {
-            opacity: 0;
-        }
-    }
+    /*.rain-animation {*/
+    /*    animation: rain 2s linear infinite;*/
+    /*}*/
 
-    .weather-animation {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        overflow: hidden;
-        z-index: 1;
-    }
+    /*!* Schnee *!*/
+    /*.snow-animation {*/
+    /*    animation: snow 5s linear infinite;*/
+    /*}*/
 
-    .rain-animation .drop {
-        position: absolute;
-        top: -10%;
-        width: 2px;
-        height: 20px;
-        background: rgba(255, 255, 255, 0.5);
-        animation: rainDrop 0.7s linear infinite;
-    }
+    /*!* Wind *!*/
+    /*.wind-animation {*/
+    /*    animation: wind 3s infinite linear;*/
+    /*}*/
 
-    @keyframes rainDrop {
-        0% {
-            transform: translateY(0);
-            opacity: 1;
-        }
-        100% {
-            transform: translateY(120vh);
-            opacity: 0;
-        }
-    }
+    /*!* Blitz *!*/
+    /*.lightning-animation {*/
+    /*    animation: lightning 0.1s ease-in-out infinite;*/
+    /*}*/
 
+    /*!* Wolken *!*/
+    /*.clouds-animation {*/
+    /*    animation: clouds 10s linear infinite;*/
+    /*}*/
 
-    .rain-animation::before {
-        content: "";
-        position: absolute;
-        top: -100%;
-        left: 50%;
-        width: 2px;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.5);
-        animation: rainDrop 0.5s linear infinite;
-    }
+    /*!* ...und so weiter für andere Wetterarten *!*/
 
-    @keyframes rainDrop {
-        0% {
-            transform: translateY(0);
-            opacity: 1;
-        }
-        100% {
-            transform: translateY(100vh);
-            opacity: 0;
-        }
-    }
+    /*!* Beispiele für Keyframes (z.B. für Regen und Schnee) *!*/
+    /*@keyframes rain {*/
+    /*    0% {*/
+    /*        top: -100%;*/
+    /*    }*/
+    /*    100% {*/
+    /*        top: 100%;*/
+    /*    }*/
+    /*}*/
 
+    /*@keyframes snow {*/
+    /*    0% {*/
+    /*        top: -100%;*/
+    /*        left: 0;*/
+    /*        opacity: 1;*/
+    /*    }*/
+    /*    100% {*/
+    /*        top: 100%;*/
+    /*        left: 100%;*/
+    /*        opacity: 0;*/
+    /*    }*/
+    /*}*/
 
-    .connection-status, .recording-status {
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
+    /*@keyframes wind {*/
+    /*    0% {*/
+    /*        transform: translateX(0);*/
+    /*    }*/
+    /*    100% {*/
+    /*        transform: translateX(100%);*/
+    /*    }*/
+    /*}*/
 
-    .connected {
-        background-color: #48bb78; /* Grüner Hintergrund */
-        color: #2f855a;
-    }
+    /*@keyframes lightning {*/
+    /*    0% {*/
+    /*        background-color: white;*/
+    /*    }*/
+    /*    50% {*/
+    /*        background-color: yellow;*/
+    /*    }*/
+    /*    100% {*/
+    /*        background-color: white;*/
+    /*    }*/
+    /*}*/
 
-    .disconnected {
-        background-color: #f56565; /* Roter Hintergrund */
-        color: #c53030;
-    }
-
-    .recording {
-        background-color: #f56565; /* Pinker Hintergrund */
-        color: #b83280;
-        animation: pulse 1.5s infinite;
-
-    }
+    /*@keyframes clouds {*/
+    /*    0% {*/
+    /*        left: -100%;*/
+    /*    }*/
+    /*    100% {*/
+    /*        left: 100%;*/
+    /*    }*/
+    /*}*/
 
 
-    .status-indicators {
-        display: flex;
-        font-size: 1.5rem;
-        justify-content: center;
-        gap: 1.5rem;
-        margin-top: 0.5rem;
-        padding: 12px 15px;
-        border: none;
-        border-radius: 25px;
-        background-color: rgba(255, 255, 255, 0.2);
-        color: white;
-        backdrop-filter: blur(10px);
-        transition: all 0.3s ease;
-        text-align: center;
-        justify-self: center;
-    }
+    /*@keyframes fog {*/
+    /*    0% {*/
+    /*        opacity: 0.5;*/
+    /*        transform: translateX(-100%);*/
+    /*    }*/
+    /*    100% {*/
+    /*        opacity: 0.1;*/
+    /*        transform: translateX(100%);*/
+    /*    }*/
+    /*}*/
+
+
+    /*.weather-animation {*/
+    /*    position: absolute;*/
+    /*    top: 0;*/
+    /*    left: 0;*/
+    /*    width: 100%;*/
+    /*    height: 100%;*/
+    /*    pointer-events: none;*/
+    /*    overflow: hidden;*/
+    /*    z-index: 1;*/
+    /*}*/
+
+    /*.rain-animation .drop {*/
+    /*    position: absolute;*/
+    /*    top: -10%;*/
+    /*    width: 2px;*/
+    /*    height: 20px;*/
+    /*    background: rgba(255, 255, 255, 0.5);*/
+    /*    animation: rain 2s linear infinite;*/
+    /*}*/
+
+    /*@keyframes rainDrop {*/
+    /*    0% {*/
+    /*        transform: translateY(0);*/
+    /*        opacity: 1;*/
+    /*    }*/
+    /*    100% {*/
+    /*        transform: translateY(120vh);*/
+    /*        opacity: 0;*/
+    /*    }*/
+    /*}*/
+
+    /*.snow-animation .flake {*/
+    /*    position: absolute;*/
+    /*    top: -10%;*/
+    /*    width: 10px;*/
+    /*    height: 10px;*/
+    /*    background-color: white;*/
+    /*    border-radius: 50%;*/
+    /*    animation: snowFall 4s linear infinite;*/
+    /*}*/
+
+    /*@keyframes snowFall {*/
+    /*    0% {*/
+    /*        transform: translateY(0);*/
+    /*        opacity: 1;*/
+    /*    }*/
+    /*    100% {*/
+    /*        transform: translateY(120vh);*/
+    /*        opacity: 0;*/
+    /*    }*/
+    /*}*/
+
+    /*.storm-animation .drop {*/
+    /*    position: absolute;*/
+    /*    top: -10%;*/
+    /*    width: 3px;*/
+    /*    height: 25px;*/
+    /*    background: rgba(255, 255, 255, 0.7);*/
+    /*    animation: stormDrop 0.4s linear infinite;*/
+    /*}*/
+
+    /*@keyframes stormDrop {*/
+    /*    0% {*/
+    /*        transform: translateY(0) rotate(0deg);*/
+    /*        opacity: 1;*/
+    /*    }*/
+    /*    100% {*/
+    /*        transform: translateY(120vh) rotate(180deg);*/
+    /*        opacity: 0;*/
+    /*    }*/
+    /*}*/
+
+    /*.fog-animation {*/
+    /*    background: rgba(255, 255, 255, 0.4);*/
+    /*    position: absolute;*/
+    /*    top: 0;*/
+    /*    left: 0;*/
+    /*    width: 100%;*/
+    /*    height: 100%;*/
+    /*    opacity: 0.7;*/
+    /*    z-index: 2;*/
+    /*    animation: fadeInFog 6s infinite;*/
+    /*}*/
+
+    /*@keyframes fadeInFog {*/
+    /*    0% {*/
+    /*        opacity: 0;*/
+    /*    }*/
+    /*    50% {*/
+    /*        opacity: 0.7;*/
+    /*    }*/
+    /*    100% {*/
+    /*        opacity: 0;*/
+    /*    }*/
+    /*}*/
+
+    /*.clouds-animation {*/
+    /*    position: absolute;*/
+    /*    top: 0;*/
+    /*    left: 0;*/
+    /*    width: 100%;*/
+    /*    height: 100%;*/
+    /*    z-index: 1;*/
+    /*    background: url('https://www.example.com/clouds.png') no-repeat center center;*/
+    /*    background-size: cover;*/
+    /*    animation: moveClouds 60s linear infinite;*/
+    /*}*/
+
+    /*@keyframes moveClouds {*/
+    /*    0% {*/
+    /*        transform: translateX(0);*/
+    /*    }*/
+    /*    100% {*/
+    /*        transform: translateX(-100%);*/
+    /*    }*/
+    /*}*/
+
+    /*.clear-sky {*/
+    /*    background-color: #a2d1ff;*/
+    /*}*/
+
+
+    /*.rain-animation {*/
+    /*    animation: rain 2s infinite;*/
+    /*}*/
+
+    /*@keyframes rain {*/
+    /*    0% {*/
+    /*        opacity: 0;*/
+    /*    }*/
+    /*    50% {*/
+    /*        opacity: 1;*/
+    /*    }*/
+    /*    100% {*/
+    /*        opacity: 0;*/
+    /*    }*/
+    /*}*/
+
+    /*.weather-animation {*/
+    /*    position: absolute;*/
+    /*    top: 0;*/
+    /*    left: 0;*/
+    /*    width: 100%;*/
+    /*    height: 100%;*/
+    /*    pointer-events: none;*/
+    /*    overflow: hidden;*/
+    /*    z-index: 1;*/
+    /*}*/
+
+    /*.rain-animation .drop {*/
+    /*    position: absolute;*/
+    /*    top: -10%;*/
+    /*    width: 2px;*/
+    /*    height: 20px;*/
+    /*    background: rgba(255, 255, 255, 0.5);*/
+    /*    animation: rainDrop 0.7s linear infinite;*/
+    /*}*/
+
+    /*@keyframes rainDrop {*/
+    /*    0% {*/
+    /*        transform: translateY(0);*/
+    /*        opacity: 1;*/
+    /*    }*/
+    /*    100% {*/
+    /*        transform: translateY(120vh);*/
+    /*        opacity: 0;*/
+    /*    }*/
+    /*}*/
+
+
+    /*.rain-animation::before {*/
+    /*    content: "";*/
+    /*    position: absolute;*/
+    /*    top: -100%;*/
+    /*    left: 50%;*/
+    /*    width: 2px;*/
+    /*    height: 100%;*/
+    /*    background: rgba(255, 255, 255, 0.5);*/
+    /*    animation: rainDrop 0.5s linear infinite;*/
+    /*}*/
+
 
     :global(body) {
         margin: 0;
@@ -669,10 +810,6 @@
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
         background-color: #f5f5f5;
         color: #333;
-    }
-
-    :global(*) {
-        box-sizing: border-box;
     }
 
     main {
@@ -693,9 +830,6 @@
         justify-content: space-around;
     }
 
-    .empty-state {
-        background: linear-gradient(to bottom, #4b6cb7, #182848);
-    }
 
     .app-header {
         display: flex;
@@ -811,30 +945,6 @@
         box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
     }
 
-    .recent-searches {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background-color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        margin-top: 5px;
-        z-index: 10;
-        overflow: hidden;
-    }
-
-    .recent-search-item {
-        padding: 10px 15px;
-        cursor: pointer;
-        color: #333;
-        transition: background-color 0.2s;
-    }
-
-    .recent-search-item:hover {
-        background-color: #f5f5f5;
-    }
-
 
     @keyframes pulse {
         0% {
@@ -856,10 +966,11 @@
         margin-bottom: 15px;
         display: flex;
         align-items: center;
-        justify-content: space-between;
         backdrop-filter: blur(5px);
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         animation: fadeIn 0.5s ease-out;
+        justify-self: center;
+        justify-content: center;
     }
 
     @keyframes fadeIn {
@@ -1078,9 +1189,7 @@
 
         }
 
-
     }
-
 
     .weather-card:hover {
         transform: translateY(-5px);
