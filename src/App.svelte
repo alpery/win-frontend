@@ -1,8 +1,7 @@
 <script>
     import {onMount} from "svelte";
 
-    // State variables
-    let city = "Heilbronn";
+    let city = "Istanbul";
     let weatherData = [];
     let loading = false;
     let error = null;
@@ -16,12 +15,10 @@
 
     let days = 5;
     let lang = 'de';
-    // Voice recognition variables
     let recognition = null;
     let isListening = false;
     let voicePrompt = "";
     let inputRef = null;
-    let showVoiceHint = true;
 
 
     async function fetchWeatherData() {
@@ -45,7 +42,7 @@
                     `Failed to fetch weather data: ${response.statusText}`,
                 );
             }
-
+            console.log(response)
             weatherData = await response.json();
             processWeatherData();
             console.log(dailyForecasts);  // Füge ein, um die Daten zu prüfen
@@ -167,7 +164,6 @@
 
     // Get weather condition category
     function getWeatherCondition(description) {
-
         const desc = description.toLowerCase();
         if (desc.includes("klar") || desc.includes("himmel")) return "clear";
 
@@ -204,7 +200,32 @@
 
     // Get weather icon URL
     function getWeatherIconUrl(iconCode) {
+        if (iconCode.includes('n')) {
+            switch (iconCode) {
+                case '01n':
+                    return `https://openweathermap.org/img/wn/01d@2x.png`;
+
+                case '02n':
+                    return `https://openweathermap.org/img/wn/02d@2x.png`;
+
+                case '03n':
+                    return `https://openweathermap.org/img/wn/03d@2x.png`;
+
+                case '04n':
+                    return `https://openweathermap.org/img/wn/02d@2x.png`;
+
+                case '10n':
+                    return `https://openweathermap.org/img/wn/10d@2x.png`;
+
+            }
+        }
+        if (iconCode === '04d') {
+            return `https://openweathermap.org/img/wn/02d@2x.png`;
+
+        }
+
         return `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+
     }
 
     // Handle form submission
@@ -245,12 +266,6 @@
         return "linear-gradient(to bottom, #4b6cb7, #182848)";
     }
 
-
-    function getAnimations(forecast) {
-        forecast.forecasts[0].description
-
-
-    }
 
     function setupSpeechRecognition() {
         if (typeof window === 'undefined') return;
@@ -354,13 +369,33 @@
 
     let drops = Array.from({length: 100});
     let snowflakes = Array.from({length: 100});
-    let clouds = Array.from({length: 100});
+
+    let clouds = Array(30).fill(null); // Example: 10 clouds
+
+    function generateCloudStyle() {
+        const left = Math.random() * 120;
+        const bottom = Math.random() * 550 + 150;
+        const opacity = Math.random() * (0.8 - 0.4) + 0.4;
+        const scale = Math.random() * (1 - 0.4) + 0.4;
+        const animationDelay = 3; // Math.floor(Math.random() * 19);
+        const animationDuration = 50; // Math.random() * (25 - 19) + 19;
+        return `
+        left: ${left}%;
+        bottom: ${bottom}px;
+        opacity: ${opacity};
+        transform: scale(${scale});
+        animationDelay: ${animationDelay};
+       animation-duration: ${animationDuration}s;
+    `;
+    }
+
 
 </script>
 <main>
     {#if dailyForecasts.length > 0}
 
         <div class="weather-animation">
+
             {#if dailyForecasts.length > 0 && dailyForecasts[selectedDayIndex].weatherCondition === 'rain'}
                 <div class="rain-animation">
                     {#each drops as _, i}
@@ -380,9 +415,30 @@
             {#if dailyForecasts.length > 0 && dailyForecasts[selectedDayIndex].weatherCondition === 'cloudy'}
                 <div class="cloudy-animation">
                     {#each clouds as _, i}
-                        <div class="cloud"
-                             style="left: {Math.random() * 100}%; animation-delay: {Math.random()}s;"></div>
+                        <div class="cloud" style="{generateCloudStyle()}">
+
+                        </div>
                     {/each}
+                </div>
+            {/if}
+            {#if dailyForecasts.length > 0 && dailyForecasts[selectedDayIndex].weatherCondition === 'fog'}
+                <div class="fog-animation">
+                    {#each Array.from({length: 5}) as _, i}
+                        <div class="fog-layer"
+                             style="--fog-opacity: {0.3 - i * 0.03}; --fog-animation-duration: {15 + i * 2}s; --fog-animation-delay: {i * 0.5}s;"></div>
+                    {/each}
+                </div>
+            {/if}
+            {#if dailyForecasts.length > 0 && dailyForecasts[selectedDayIndex].weatherCondition === 'storm'}
+                <div class="storm-animation">
+                    {#each drops as _, i}
+                        <div class="drop storm-drop"
+                             style="left: {Math.random() * 100}%; animation-delay: {Math.random() * 0.5}s;"></div>
+                    {/each}
+                    <div class="lightning-container">
+                        <div class="lightning"></div>
+                        <div class="lightning delayed"></div>
+                    </div>
                 </div>
             {/if}
 
@@ -472,10 +528,7 @@
 
                             <div class="weather-info">
                                 <div class="temperature-container">
-                                    <div class="current-temp">Aktuelle
-                                        Temperatur: {Math.round(weatherData.temperature)}
-                                        °C
-                                    </div>
+
                                     <div class="min-max">
                                         <span class="min">{Math.round(weatherData.minTemperature)}°C</span> /
                                         <span class="max">{Math.round(weatherData.maxTemperature)}°C</span>
@@ -550,6 +603,15 @@
 </main>
 
 <style>
+
+    .max {
+        color: red;
+    }
+
+    .min {
+        color: blue;
+    }
+
     .weather-animation {
         position: absolute;
         top: 0;
@@ -558,7 +620,7 @@
         height: 100%;
         pointer-events: none;
         overflow: hidden;
-        z-index: 1;
+        z-index: 0; /*animation vor(1) oder hinter(0) der wetter karte */
     }
 
     .drop {
@@ -584,17 +646,22 @@
 
     /*Schneeflocken Animation*/
     .snowflake {
+        --size: 1vw;
+        color: white;
         position: absolute;
-        top: -10px;
+        top: -5vh;
         background-color: rgba(255, 255, 255, 0.9);
-        width: 5px;
-        height: 5px;
+        width: var(--size);
+        height: var(--size);
         border-radius: 50%;
-        animation: snow 3s linear infinite;
+        animation: snow 1s linear infinite;
+        animation-delay: -7s;
     }
+
 
     @keyframes snow {
         0% {
+
             top: -10px;
             opacity: 1;
         }
@@ -603,21 +670,127 @@
             opacity: 0.5;
         }
     }
-    .cloud {
-        position: absolute;
-        top: 20%;
-        background-color: rgba(255, 255, 255, 0.5);
-        width: 150px;
-        height: 80px;
-        border-radius: 50%;
-        animation: cloudMove 15s linear infinite;
-    }
-    @keyframes cloudMove {
+
+
+    @keyframes snowfall {
         0% {
-            left: -150px;
+            transform: translate3d(var(--left-ini), 0, 0);
         }
         100% {
-            left: 100%;
+            transform: translate3d(var(--left-end), 110vh, 0);
+        }
+    }
+
+
+    .cloud {
+        position: absolute;
+        bottom: 500px;
+        width: 250px;
+        height: 120px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 30px 10px 0 0 #fff,
+        60px 15px 0 0 #fff,
+        20px -10px 0 0 #fff;
+        animation-name: floatCloud;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+        opacity: 0.7;
+    }
+
+    @keyframes floatCloud {
+        0% {
+            transform: translateX(-100px);
+            opacity: 0.7;
+        }
+        100% {
+            transform: translateX(90vh);
+            opacity: 0.7;
+        }
+    }
+
+    .fog-animation {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    .fog-layer {
+        position: absolute;
+        width: 200%;
+        height: 100%;
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, var(--fog-opacity)) 25%, rgba(255, 255, 255, var(--fog-opacity)) 75%, rgba(255, 255, 255, 0) 100%);
+        animation: fogMove var(--fog-animation-duration) linear infinite;
+        animation-delay: var(--fog-animation-delay);
+        top: calc(10% + var(--fog-animation-delay) * 10);
+        opacity: 0.8;
+    }
+
+    @keyframes fogMove {
+        0% {
+            transform: translateX(-50%);
+        }
+        100% {
+            transform: translateX(0%);
+        }
+    }
+
+    .storm-drop {
+        height: 30px;
+        transform: rotate(15deg);
+        animation: stormDrop 0.5s linear infinite;
+
+    }
+
+    @keyframes stormDrop {
+        0% {
+            transform: translateY(0) rotate(15deg);
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(120vh) rotate(15deg);
+            opacity: 0;
+        }
+    }
+
+    .lightning-container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+    }
+
+    .lightning {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0);
+        opacity: 0;
+        animation: lightning 4s infinite;
+    }
+
+    .lightning.delayed {
+        animation: lightning 7s 3.5s infinite;
+    }
+
+    @keyframes lightning {
+        0%, 95%, 100% {
+            background-color: rgba(255, 255, 255, 0);
+            opacity: 0;
+        }
+        96%, 98% {
+            background-color: rgba(255, 255, 255, 0.6);
+            opacity: 1;
+        }
+        97%, 99% {
+            background-color: rgba(255, 255, 255, 0);
+            opacity: 0;
         }
     }
 
