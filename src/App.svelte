@@ -1,21 +1,16 @@
 <script>
     import {onMount} from "svelte";
 
-    let city = "Istanbul";
+    let city = "Heilbronn";
     let weatherData = [];
     let loading = false;
     let error = null;
     let dailyForecasts = [];
     let selectedDayIndex = 0;
     let recentSearches = [];
-    let showRecentSearches = false;
     let isConnected = true;
-    let isRecording = false;
     let triggerWord = "Wetter";
-
     let days = 5;
-    let lang = 'de';
-    let recognition = null;
     let isListening = false;
     let voicePrompt = "";
     let inputRef = null;
@@ -78,8 +73,16 @@
         const groupedByDay = {};
 
         weatherData.forEach((item) => {
+
+
             const date = new Date(item.forecastDate);
-            const dayKey = date.toISOString().split("T")[0]; // YYYY-MM-DD format
+
+            if (isNaN(date.getTime())) {
+                console.warn("Invalid date in weather data:", item);
+                return;
+            }
+
+            const dayKey =  date.toISOString().split("T")[0]; // YYYY-MM-DD format
 
             if (!groupedByDay[dayKey]) {
                 groupedByDay[dayKey] = [];
@@ -111,7 +114,7 @@
                 // Get the noon forecast if available, otherwise use the first one
                 const noonForecast =
                     forecasts.find((f) => {
-                        const date = new Date(f.forecastDate);
+                        const date = new Date(f.date);
                         return date.getHours() >= 12 && date.getHours() < 15;
                     }) || dayData;
 
@@ -126,12 +129,12 @@
 
                 // Sort forecasts by time first
                 const sortedForecasts = forecasts.sort(
-                    (a, b) => new Date(a.forecastDate) - new Date(b.forecastDate)
+                    (a, b) => new Date(a.date) - new Date(b.date)
                 );
 
                 // Keep only one forecast per formatted time
                 sortedForecasts.forEach(forecast => {
-                    const formattedTime = new Date(forecast.forecastDate).toLocaleTimeString("de-DE", {
+                    const formattedTime = new Date(forecast.date).toLocaleTimeString("de-DE", {
                         hour: "2-digit",
                         minute: "2-digit",
                     });
@@ -228,12 +231,6 @@
 
     }
 
-    // Handle form submission
-    function handleSubmit(event) {
-        event.preventDefault();
-        fetchWeatherData();
-        showRecentSearches = false;
-    }
 
 
     // Get background gradient based on time and weather
@@ -241,7 +238,7 @@
         if (!forecast) return "linear-gradient(to bottom, #4b6cb7, #182848)";
 
         const condition = forecast.weatherCondition;
-        const hour = new Date(forecast.forecasts[0].forecastDate).getHours();
+        const hour = new Date(forecast.forecasts[0].hour);
         const isDay = hour >= 6 && hour < 20;
         console.log(forecast.weatherCondition);
 
@@ -266,60 +263,55 @@
         return "linear-gradient(to bottom, #4b6cb7, #182848)";
     }
 
+    let socket = null;
+    let isSocketConnected = false;
 
-    function setupSpeechRecognition() {
-        if (typeof window === 'undefined') return;
+    function initWebSocket() {
+        if (socket) {
+            socket.close();
+        }
 
         try {
-            // @ts-ignore
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                console.log("Speech Recognition not supported");
-                return;
-            }
-
-            recognition = new SpeechRecognition();
-            recognition.lang = lang === 'de' ? 'de-DE' : 'en-US';
-            recognition.continuous = false;
-
-            recognition.onstart = () => isRecording = true;
-            recognition.onend = () => {
-                isRecording = false;
-                if (isListening) {
-                    setTimeout(() => recognition.start(), 300);
+            socket = new WebSocket('ws://localhost:8765/ws');
+            socket.onopen = () => {
+                console.log('WebSocket connection established');
+                isSocketConnected = true;
+            };
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'speech_result') {
+                        // Handle speech recognition result
+                        const transcript = data.text.toLowerCase();
+                        console.log("Heard from WebSocket:", transcript);
+                        if (transcript.includes(triggerWord.toLowerCase())) {
+                            // Extract command after trigger word
+                            const parts = transcript.split(triggerWord.toLowerCase());
+                            if (parts.length < 2) return;
+                            let command = parts[1].trim();
+                            if (command.endsWith('.')) {
+                                command = command.slice(0, -1);
+                            }
+                            if (!command) return;
+                            // Parse command
+                            parseVoiceCommand(command);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error parsing WebSocket message:', e);
                 }
             };
-
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript.toLowerCase();
-                console.log("Heard:", transcript);
-
-                if (!transcript.includes(triggerWord.toLowerCase())) return;
-
-                // Extract command after trigger word
-                const parts = transcript.split(triggerWord.toLowerCase());
-                if (parts.length < 2) return;
-
-                let command = parts[1].trim()
-                if (command.endsWith('.')) {
-                    command = command.slice(0, -1);
-                }
-                if (!command) return;
-                command = command.replace(/\.$/, '');
-                if (!command) return;
-
-                // Parse command
-                parseVoiceCommand(command);
+            socket.onclose = () => {
+                isSocketConnected = false;
             };
-
-            isListening = true;
-            recognition.start();
         } catch (e) {
-            console.error("Speech recognition error:", e);
+            console.error('Error initializing WebSocket:', e);
         }
     }
 
+
     function parseVoiceCommand(command) {
+        console.log("parsen")
         // Extract city and days from command
         const words = command.trim().split(/\s+/);
         let newDays = 5;
@@ -343,7 +335,14 @@
     }
 
     function checkConnection() {
+        console.log("connection")
+
         isConnected = navigator.onLine;
+        if (isConnected) {
+            console.log("online")
+        } else {
+            console.log("offline")
+        }
         window.addEventListener('online', () => isConnected = true);
         window.addEventListener('offline', () => isConnected = false);
     }
@@ -352,17 +351,11 @@
     // Initialize with a default city and load recent searches
     onMount(() => {
         // Load recent searches from localStorage
-
-        setupSpeechRecognition();
+        initWebSocket()
         checkConnection();
 
-        document.getElementsByClassName("city-input").value = (" ")
-
-        // Start with a default city
 
         fetchWeatherData();
-
-        // Initialize speech recognition
 
     });
 
@@ -463,14 +456,12 @@
 
 
                 <div class="search-container">
-                    <form on:submit={handleSubmit} class="search-form">
                         <div class="input-wrapper {isListening ? 'listening' : ''}">
                             <input bind:value={city} bind:this={inputRef}
                                    placeholder={isListening ? voicePrompt : "Stadt eingeben..."} class="city-input"
 
                                    readonly="readonly"/>
                         </div>
-                    </form>
                 </div>
             </div>
 
@@ -578,14 +569,12 @@
 
 
                 <div class="search-container">
-                    <form on:submit={handleSubmit} class="search-form">
                         <div class="input-wrapper {isListening ? 'listening' : ''}">
                             <input bind:value={city} bind:this={inputRef}
                                    placeholder={isListening ? voicePrompt : "Stadt eingeben..."} class="city-input"
 
                                    readonly="readonly"/>
                         </div>
-                    </form>
                 </div>
                 <div class="no-data">
                     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
